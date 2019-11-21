@@ -3,10 +3,10 @@ use crate::tokens::tokens::{lookup_identifier, Token, TokenType};
 #[derive(Debug)]
 pub struct Lexer {
     input: String,
-    input_chars: Vec<char>,
-    position: usize,      // Current position in input (positions to current_char)
-    read_position: usize, // Current reading position in input (positions to after current_char)
-    current_char: char,   // Char that is currently being examined
+    input_chars: Vec<char>, // Char Vector to allow getting chars at certain indices
+    position: usize,        // Current position in input (positions to current_char)
+    read_position: usize,   // Current reading position in input (positions to after current_char)
+    current_char: char,     // Char that is currently being examined
 }
 
 impl Lexer {
@@ -68,6 +68,7 @@ impl Lexer {
         let token = match self.current_char {
             // Operators
             '=' => {
+                // Check if '==' else '='
                 if self.peek_char() == '=' {
                     let ch = self.current_char;
                     self.read_char();
@@ -78,9 +79,10 @@ impl Lexer {
                 } else {
                     Token::new(TokenType::ASSIGN, self.current_char.to_string())
                 }
-            },
+            }
 
             '!' => {
+                // Check if '!=' else '!'
                 if self.peek_char() == '=' {
                     let ch = self.current_char;
                     self.read_char();
@@ -91,7 +93,7 @@ impl Lexer {
                 } else {
                     Token::new(TokenType::BANG, self.current_char.to_string())
                 }
-            },
+            }
 
             // Mathematical Operators
             '+' => Token::new(TokenType::PLUS, self.current_char.to_string()),

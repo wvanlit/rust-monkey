@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
@@ -34,7 +36,7 @@ pub fn lookup_identifier(ident: &str) -> TokenType {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TokenType {
     ILLEGAL,
     EOF,
@@ -78,4 +80,13 @@ pub enum TokenType {
     // Boolean Keywords
     TRUE,  // true boolean
     FALSE, // false boolean
+}
+
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TokenType::ASTERISK =>  write!(f, "*"),
+            _ =>  write!(f, "{:?}", self),
+        }
+    }
 }

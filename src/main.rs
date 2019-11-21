@@ -1,6 +1,7 @@
 mod lexer;
-mod tokens;
+mod parser;
 mod repl;
+mod tokens;
 
 fn main() {
     repl::repl::start();
