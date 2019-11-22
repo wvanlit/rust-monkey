@@ -19,7 +19,7 @@ pub enum Precedence {
     CALL, // 'func(x)'
 }
 
-fn getTokenPrecedence(token_type: TokenType) -> Precedence {
+fn get_token_precedence(token_type: TokenType) -> Precedence {
     match token_type {
         TokenType::EQ => Precedence::EQUALS,
         TokenType::NOT_EQ => Precedence::EQUALS,
@@ -92,11 +92,11 @@ impl Parser {
     }
 
     fn curr_precedence(&self) -> Precedence {
-        getTokenPrecedence((*self.cur_token).token_type)
+        get_token_precedence((*self.cur_token).token_type)
     }
 
     fn peek_precedence(&self) -> Precedence {
-        getTokenPrecedence((*self.peek_token).token_type)
+        get_token_precedence((*self.peek_token).token_type)
     }
     /*
      *	Program Parsing
@@ -195,6 +195,8 @@ impl Parser {
             TokenType::IDENT => self.parse_identifier(),
             TokenType::INT => self.parse_integer_literal(),
             TokenType::BANG | TokenType::MINUS => self.parse_prefix_expression(),
+            TokenType::TRUE | TokenType::FALSE => self.parse_boolean(),
+            TokenType::LPAREN => self.parse_grouped_expression(),
             _ => ast::Expr::None
         }
     }
@@ -214,7 +216,7 @@ impl Parser {
         	// Check if the current precedence still doesn't overule the next one
             && priority < &mut self.peek_precedence()
             // Check if INFIX operator (has a precedence)
-            && getTokenPrecedence((*self.peek_token).token_type) != Precedence::LOWEST{
+            && get_token_precedence((*self.peek_token).token_type) != Precedence::LOWEST{
             self.next_token();
             match self.parse_infix_expression(left_expr) {
                 Ok(result) => {
@@ -252,6 +254,26 @@ impl Parser {
                 self.errors.push(Err(e.to_string()));
                 ast::Expr::None
             }
+        }
+    }
+
+    fn parse_boolean(&mut self) -> ast::Expr{
+        ast::Expr::Bool(self.cur_token_is(TokenType::TRUE))
+    }
+
+    fn parse_grouped_expression(&mut self) -> ast::Expr {
+        self.next_token();
+
+        let exp = self.parse_expression(&mut Precedence::LOWEST);
+
+        if !self.expect_peek(TokenType::RPAREN){
+            self.errors.push(Err("Expected RPAREN ')'!".to_string()));
+            return ast::Expr::None
+        }
+
+        match exp {
+            Some(expr) => expr,
+            None => ast::Expr::None,
         }
     }
 
@@ -432,8 +454,10 @@ mod tests {
     #[test]
     fn test_parsing_prefix_expressions() {
         let input = vec![
-            ("!5;", "!", 5),
-            ("-15;", "-", 15)
+            ("!5;", "!", int(5)),
+            ("-15;", "-", int(15)),
+            ("!true;", "!", bool(true)),
+            ("!false;", "!", bool(false)),
         ];
 
         for test in input.iter() {
@@ -456,7 +480,7 @@ mod tests {
                 ast::Statement::Expr(expr) => match expr {
                     ast::Expr::Prefix(value, right) => {
                         assert_eq!(value, test.1);
-                        test_integer_literal(&right, test.2);
+                        test_expression(&right, &test.2);
                     }
                     _ => assert!(false),
                 },
@@ -465,17 +489,35 @@ mod tests {
         }
     }
 
+    fn int(i: i32) -> ast::Expr {
+        ast::Expr::IntegerLiteral(i)
+    }
+
+    fn bool(b: bool) -> ast::Expr {
+        ast::Expr::Bool(b)
+    }
+
+    fn ident(value: String) -> ast::Expr{
+        ast::Expr::Ident(ast::Identifier{
+            value: value,
+            token: Token::new(TokenType::IDENT, value)
+        })
+    }
+
     #[test]
     fn test_parsing_infix_expressions() {
         let input = vec![
-            ("5 + 5;", 5, TokenType::PLUS, 5),
-            ("5 - 5;", 5, TokenType::MINUS, 5),
-            ("5 * 5;", 5, TokenType::ASTERISK, 5),
-            ("5 / 5;", 5, TokenType::SLASH, 5),
-            ("5 > 5;", 5, TokenType::GT, 5),
-            ("5 < 5;", 5, TokenType::LT, 5),
-            ("5 == 5;", 5, TokenType::EQ, 5),
-            ("5 != 5;", 5, TokenType::NOT_EQ, 5),
+            ("5 + 5;", int(5), TokenType::PLUS, int(5)),
+            ("5 - 5;", int(5), TokenType::MINUS, int(5)),
+            ("5 * 5;", int(5), TokenType::ASTERISK, int(5)),
+            ("5 / 5;", int(5), TokenType::SLASH, int(5)),
+            ("5 > 5;", int(5), TokenType::GT, int(5)),
+            ("5 < 5;", int(5), TokenType::LT, int(5)),
+            ("5 == 5;", int(5), TokenType::EQ, int(5)),
+            ("5 != 5;", int(5), TokenType::NOT_EQ, int(5)),
+            ("true != false;", bool(true), TokenType::NOT_EQ, bool(false)),
+            ("false == false;", bool(false), TokenType::EQ, bool(false)),
+            ("true == true;", bool(true), TokenType::EQ, bool(true)),
         ];
 
         for test in input.iter() {
@@ -495,24 +537,37 @@ mod tests {
 
             let statement = program.statements.pop().expect("Expected Statement!");
             match statement {
-                ast::Statement::Expr(expr) => match expr {
-                    ast::Expr::Infix(operator, left, right) => {
-                        assert_eq!(operator, test.2);
-                        test_integer_literal(&left, test.1);
-                        test_integer_literal(&right, test.3);
-                    }
-                    _ => assert!(false),
-                },
+                ast::Statement::Expr(expr) => test_infix_expression(&expr, &test.1, test.2, &test.3),
                 _ => assert!(false),
             }
         }
     }
 
     #[test]
-    fn testOperatorPrecedence() {
+    fn test_operator_precedence() {
     	let input = vec![
     	("-a * b", "((-a) * b)"),
-    	];
+        ("!-a", "(!(-a))"),
+        ("a + b + c", "((a + b) + c)"),
+        ("a * b * c", "((a * b) * c)"),
+        ("a * b / c", "((a * b) / c)"),
+        ("a + b / c", "(a + (b / c))"),
+        ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+        ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+        ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+        ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+        ("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+        ("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+    	("true", "true"),
+        ("false", "false"),
+        ("3 > 5 == false", "((3 > 5) == false)"),
+        ("3 < 5 != true", "((3 < 5) != true)"),
+        ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+        ("(5 + 5) * 2", "((5 + 5) * 2)"),
+        ("2 / (5 + 5)", "(2 / (5 + 5))"),
+        ("-(5 + 5)", "(-(5 + 5))"),
+        ("!(true == true)", "(!(true == true))")
+        ];
 
     	for test in input.iter() {
             let lexer = Lexer::new(test.0.to_string());
@@ -530,4 +585,112 @@ mod tests {
             assert_eq!(ast::program_to_string(&program), test.1);            
         }
     }
+
+    fn test_identifier(expr: &ast::Expr, expected: &String) {
+        match expr {
+            ast::Expr::Identifier(ident) => {
+                assert_eq!(ident.value, *expected); 
+            },
+            _ => assert!(false),
+        }
+    }
+
+    fn test_expression(expr: &ast::Expr, expected: &ast::Expr){
+        match expr {
+            ast::Expr::Identifier(_) => {
+                match expected {
+                    ast::Expr::Identifier(ident) => test_identifier(expr, &ident.value),
+                    _ => assert!(false),
+                }
+            },
+            ast::Expr::IntegerLiteral(_) => {
+                match expected {
+                    ast::Expr::IntegerLiteral(i) => test_integer_literal(expr, *i),
+                    _ => assert!(false),
+                }
+            }
+            ast::Expr::Bool(val) => {
+                match expected {
+                    ast::Expr::Bool(val2) => assert_eq!(val, val2),
+                    _ => assert!(false),
+                }
+            },
+            _ => assert!(false),
+        }
+    }
+
+    fn test_infix_expression(infix: &ast::Expr, left: &ast::Expr, operator: TokenType, right: &ast::Expr) {
+        match infix {
+            ast::Expr::Infix(op, box_left, box_right) => {
+                // Test Left Expression
+                test_expression(&box_left, left);
+                // Test Right Expression
+                test_expression(&box_right, right);
+                // Test Operator
+                assert_eq!(operator, *op);
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_boolean_expression() {
+        let input = "true;";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+        match statement {
+            ast::Statement::Expr(expr) => match expr {
+                ast::Expr::Bool(value) => {
+                    assert_eq!(value, true);
+                }
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_if_expression(){
+        let input = "if (x < y) { x };";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+        match statement {
+            ast::Statement::Expr(expr) => match expr {
+                ast::Expr::If(condition, if_block, else_option) => {
+                   test_infix_expression(condition, , TokenType::LT, )
+                }
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
 }

@@ -86,6 +86,13 @@ impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TokenType::ASTERISK =>  write!(f, "*"),
+            TokenType::SLASH => write!(f, "/"),
+            TokenType::PLUS => write!(f, "+"),
+            TokenType::MINUS => write!(f, "-"),
+            TokenType::GT => write!(f, ">"),
+            TokenType::LT => write!(f, "<"),
+            TokenType::EQ => write!(f, "=="),
+            TokenType::NOT_EQ => write!(f, "!="),
             _ =>  write!(f, "{:?}", self),
         }
     }
