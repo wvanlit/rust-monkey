@@ -1,4 +1,4 @@
-use crate::tokens::tokens::{Token, TokenType};
+use crate::tokens::tokens::{TokenType};
 
 pub struct Program {
     pub statements: Vec<Statement>,
@@ -8,6 +8,7 @@ pub fn program_to_string(program: &Program) -> String {
     let mut output = String::new();
     for statement in program.statements.iter() {
         output += &statement_to_string(&statement);
+        output += "\n";
     }
 
     output
@@ -29,7 +30,16 @@ pub fn statement_to_string(statement: &Statement) -> String {
         }
         Statement::Return(expr) => format!("(return {})", expression_to_string(expr)),
         Statement::Expr(expr) => format!("{}", expression_to_string(expr)),
-        Statement::BlockStatement(vec) => format!("{:?}", vec),
+        Statement::BlockStatement(vec) => {
+        	let mut output = String::new(); 
+        	for (index, stmnt) in vec.iter().enumerate(){
+        		output += &statement_to_string(stmnt);
+        		if vec.len() - index != 1{
+        			output += "\n";
+        		}
+        	}
+        	output
+        },
         Statement::None => "None".to_string(),
     }
 }
@@ -72,7 +82,16 @@ pub fn expression_to_string(expression: &Expr) -> String {
                 statement_to_string(if_block)
             ),
         },
-        Expr::FunctionLiteral(parameters, body) => format!("fn ({:?}) {}", parameters, statement_to_string(body)),
+        Expr::FunctionLiteral(parameters, body) => {
+        	let mut output = String::new(); 
+        	for (index, ident) in parameters.iter().enumerate(){
+        		output += &ident.value;
+        		if parameters.len() - index != 1{
+        			output += ", ";
+        		}
+        	}
+        	format!("fn ({}) {}", output, statement_to_string(body))
+        },
         Expr::CallExpresion{function: boxed_func, arguments: args} => {
         	let mut arg_string = String::new();
         	for (index, expr) in args.iter().enumerate() {

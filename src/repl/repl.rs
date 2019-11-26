@@ -1,5 +1,6 @@
 use crate::lexer::lexer::Lexer;
-use crate::tokens::tokens::TokenType;
+use crate::parser::parser::Parser;
+use crate::parser::ast::{program_to_string};
 use std::io::{self};
 
 const PROMPT: &str = "$> ";
@@ -24,13 +25,19 @@ pub fn start() {
         }
 
         // Create Lexer
-        let mut lexer = Lexer::new(buffer);
+        let lexer = Lexer::new(buffer);
+        let mut parser = Parser::new(lexer);
 
-        // Lex Input
-        let mut token = lexer.next_token();
-        while token.token_type != TokenType::EOF {
-            println!("{:?}", token);
-            token = lexer.next_token();
+        let program = parser.parse_program();
+
+        if parser.errors.len() > 0 {
+            for err in parser.errors.iter() {
+                println!("{:?}", err.as_ref().unwrap_err());
+            }
+            continue;
         }
+
+        println!("{}", program_to_string(&program));
+
     }
 }
