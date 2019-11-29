@@ -1,24 +1,27 @@
 use crate::tokens::tokens::{TokenType};
 
+#[derive(Debug, Clone)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 
 pub fn program_to_string(program: &Program) -> String {
     let mut output = String::new();
-    for statement in program.statements.iter() {
+    for (index, statement) in program.statements.iter().enumerate() {
         output += &statement_to_string(&statement);
-        output += "\n";
+        if program.statements.len() - index != 1{
+            output += "\n";
+        }
     }
 
     output
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Let(Identifier, Expr),
     Return(Expr),
-    BlockStatement(Vec<Box<Statement>>),
+    BlockStatement(Vec<Statement>),
     Expr(Expr),
     None,
 }
@@ -44,7 +47,7 @@ pub fn statement_to_string(statement: &Statement) -> String {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Bool(bool),
     Identifier(Identifier),
@@ -53,7 +56,7 @@ pub enum Expr {
     Infix(TokenType, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Statement>, Option<Box<Statement>>),
     FunctionLiteral(Vec<Identifier>, Box<Statement>),
-    CallExpresion{function: Box<Expr>, arguments: Vec<Box<Expr>>}, // Function can be either func_literal or identifier
+    CallExpression{function: Box<Expr>, arguments: Vec<Expr>}, // Function can be either func_literal or identifier
     None,
 }
 
@@ -92,7 +95,7 @@ pub fn expression_to_string(expression: &Expr) -> String {
         	}
         	format!("fn ({}) {}", output, statement_to_string(body))
         },
-        Expr::CallExpresion{function: boxed_func, arguments: args} => {
+        Expr::CallExpression{function: boxed_func, arguments: args} => {
         	let mut arg_string = String::new();
         	for (index, expr) in args.iter().enumerate() {
         		arg_string.push_str(&expression_to_string(expr));
@@ -107,7 +110,7 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::None => "none".to_string(),
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Identifier {
     pub value: String,
 }

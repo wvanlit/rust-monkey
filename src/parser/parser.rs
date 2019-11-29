@@ -296,13 +296,13 @@ impl Parser {
     }
 
     fn parse_block_statement(&mut self) -> ast::Statement{
-    	let mut statements: Vec<Box<ast::Statement>> = vec![];
+    	let mut statements: Vec<ast::Statement> = vec![];
     	
     	self.next_token();
 
     	while !self.cur_token_is(TokenType::RBRACE){
     		match self.parse_statement() {
-    			Some(statement) => statements.push(Box::new(statement)),
+    			Some(statement) => statements.push(statement),
     			None => (), 
     		}
     		self.next_token();
@@ -421,8 +421,8 @@ impl Parser {
         ast::Expr::Prefix(operator.to_string(), Box::new(right))
     }
 
-    fn parse_call_arguments(&mut self) -> Vec<Box<ast::Expr>>{
-    	let mut args: Vec<Box<ast::Expr>> = vec![];
+    fn parse_call_arguments(&mut self) -> Vec<ast::Expr>{
+    	let mut args: Vec<ast::Expr> = vec![];
 
     	if self.peek_token_is(TokenType::RPAREN){
     		self.next_token();
@@ -431,7 +431,7 @@ impl Parser {
 
     	self.next_token();
     	match self.parse_expression(&mut Precedence::LOWEST) {
-    			Some(expr) => args.push(Box::new(expr)),
+    			Some(expr) => args.push(expr),
     			None => (), 
 		}
 
@@ -439,7 +439,7 @@ impl Parser {
 			self.next_token();
 			self.next_token();
 			match self.parse_expression(&mut Precedence::LOWEST) {
-    			Some(expr) => args.push(Box::new(expr)),
+    			Some(expr) => args.push(expr),
     			None => (), 
 			}
 		}
@@ -452,7 +452,7 @@ impl Parser {
     }
 
     fn parse_call_expression(&mut self, function: ast::Expr) -> Result<ast::Expr, ast::Expr>{
-    	Ok(ast::Expr::CallExpresion{function: Box::new(function), arguments: self.parse_call_arguments()})
+    	Ok(ast::Expr::CallExpression{function: Box::new(function), arguments: self.parse_call_arguments()})
     }
 
     fn parse_infix_expression(&mut self, left: ast::Expr) -> Result<ast::Expr, ast::Expr> {
@@ -770,7 +770,7 @@ mod tests {
             ("a * b / c", "((a * b) / c)"),
             ("a + b / c", "(a + (b / c))"),
             ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
-            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+            ("3 + 4; -5 * 5", "(3 + 4)\n((-5) * 5)"),
             ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
             ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
             (
@@ -917,7 +917,7 @@ mod tests {
                     match *if_block {
                         ast::Statement::BlockStatement(mut vec) => {
                             assert_eq!(vec.len(), 1);
-                            match *vec.pop().expect("Nothing in Vec") {
+                            match vec.pop().expect("Nothing in Vec") {
                                 ast::Statement::Expr(expr) => {
                                     test_identifier(&expr, &"x".to_string())
                                 }
@@ -968,7 +968,7 @@ mod tests {
                     match *if_block {
                         ast::Statement::BlockStatement(mut vec) => {
                             assert_eq!(vec.len(), 1);
-                            match *vec.pop().expect("Nothing in Vec") {
+                            match vec.pop().expect("Nothing in Vec") {
                                 ast::Statement::Expr(expr) => {
                                     test_identifier(&expr, &"x".to_string())
                                 }
@@ -983,7 +983,7 @@ mod tests {
                         Some(else_block) => match *else_block {
                             ast::Statement::BlockStatement(mut vec) => {
                                 assert_eq!(vec.len(), 1);
-                                match *vec.pop().expect("Nothing in Vec") {
+                                match vec.pop().expect("Nothing in Vec") {
                                     ast::Statement::Expr(expr) => {
                                         test_identifier(&expr, &"y".to_string())
                                     }
@@ -1036,7 +1036,7 @@ mod tests {
                    		ast::Statement::BlockStatement(mut statements) => {
                    			assert_eq!(statements.len(), 1);
                    			match statements.pop() {
-                   				Some(stmnt) => match *stmnt {
+                   				Some(stmnt) => match stmnt {
                    					ast::Statement::Expr(expr) => test_infix_expression(&expr, &ident("x"), TokenType::PLUS, &ident("y")),
                    					_ => assert!(false),
                    				},
@@ -1074,7 +1074,7 @@ mod tests {
 
         match statement {
         	ast::Statement::Expr(expr) => match expr {
-        		ast::Expr::CallExpresion{function: boxed_func, arguments: mut args} => {
+        		ast::Expr::CallExpression{function: boxed_func, arguments: mut args} => {
         			test_identifier(&boxed_func, &"add".to_string());
 
         			test_integer_literal(&args.remove(0), 1);

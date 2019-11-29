@@ -1,6 +1,8 @@
+use crate::evaluate::evaluate::Evaluator;
+use crate::evaluate::object::Object;
 use crate::lexer::lexer::Lexer;
 use crate::parser::parser::Parser;
-use crate::parser::ast::{program_to_string};
+
 use std::io::{self};
 
 const PROMPT: &str = "$> ";
@@ -9,6 +11,7 @@ pub fn start() {
     println!("Welcome to the Monkey REPL!");
 
     // REPL Loop
+    let mut evaluator = Evaluator::new();
     loop {
         // Print prompt and flush to write it to console
         print!("{}", PROMPT);
@@ -28,7 +31,7 @@ pub fn start() {
         let lexer = Lexer::new(buffer);
         let mut parser = Parser::new(lexer);
 
-        let program = parser.parse_program();
+        let mut program = parser.parse_program();
 
         if parser.errors.len() > 0 {
             for err in parser.errors.iter() {
@@ -37,7 +40,12 @@ pub fn start() {
             continue;
         }
 
-        println!("{}", program_to_string(&program));
+        let outcome = evaluator.eval_program(&mut program);
+        match outcome {
+            Object::Null => (),
+            _ => println!("{}", outcome.inspect()),
+        };
+        
 
     }
 }
