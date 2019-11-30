@@ -3,12 +3,16 @@ use core::cell::RefCell;
 use std::collections::HashMap;
 use crate::parser::ast;
 
+pub type BuiltinFunction = fn(Vec<Object>) -> Result<Object, String>;
+
 #[derive(Debug, Clone)]
 pub enum Object {
 	Integer(i32),
 	Boolean(bool),
+	String(String),
 	Return(Box<Object>),
 	Function{parameters: Vec<ast::Identifier>, body: ast::Statement, env: Rc<RefCell<Environment>>},
+	Builtin(String, usize, BuiltinFunction),
 	Null,
 	Error(String)
 }
@@ -18,6 +22,7 @@ impl Object {
 		match self {
 			Object::Integer(i) => format!("{}", i),
 			Object::Boolean(b) => format!("{}", b),
+			Object::String(s) => s.clone(),
 			Object::Return(r) => format!("return {}", r.inspect()),
 			Object::Function{parameters, body, env: _} => {
 				let mut output = String::new(); 
@@ -29,6 +34,7 @@ impl Object {
 				}
 				format!("fn ({}) {{\n{}\n}}", output, ast::statement_to_string(body))
 			},
+			Object::Builtin(name, _, _) => format!("{}()", name),
 			Object::Null => "NULL".to_string(),
 			Object::Error(message) => format!("ERROR: {}", message),
 		}
@@ -49,8 +55,10 @@ impl Object {
 		match self {
 			Object::Integer(_) => "INTEGER",
 			Object::Boolean(_) => "BOOLEAN",
+			Object::String(_) => "STRING",
 			Object::Return(_) => "RETURN",
 			Object::Function{parameters: _, body: _, env: _} => "FUNCTION",
+			Object::Builtin(_,_,_) => "BUILTIN",
 			Object::Null => "NULL",
 			Object::Error(_) => "ERROR",
 		}
@@ -94,3 +102,4 @@ impl Environment {
 		self.store.insert(key, value);
 	}
 }
+

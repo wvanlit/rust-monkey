@@ -91,6 +91,7 @@ impl Evaluator {
 		match expression{
 			ast::Expr::IntegerLiteral(i) => Object::Integer(*i),
 			ast::Expr::Bool(b) => Object::Boolean(*b),
+			ast::Expr::String(s) => Object::String(s.clone()),
 			ast::Expr::Identifier(ident) => self.eval_identifier(ident.value.clone()),
 			ast::Expr::Prefix(op, right) => {
 				let right_obj = self.eval_expression(right);
@@ -174,6 +175,11 @@ impl Evaluator {
 				Object::Boolean(b2) => self.eval_infix_bool_expression(operator, b1, b2),
 				_ => type_error,
 			}
+			Object::String(s1) => match right {
+				Object::String(s2) => self.eval_infix_string_expression(operator, s1, s2),
+				_ => type_error,
+			}
+
 			_ => type_error,
 		}
 	}
@@ -199,6 +205,13 @@ impl Evaluator {
 			TokenType::EQ => Object::Boolean(left_val == right_val),
 			TokenType::NOT_EQ => Object::Boolean(left_val != right_val),
 			_ => Object::Error(format!("unknown operator: BOOLEAN {} BOOLEAN", operator)),
+		}
+	}
+
+	fn eval_infix_string_expression(&self, operator: &TokenType, left_val: String, right_val: String) -> Object{
+		match operator{
+			TokenType::PLUS => Object::String(left_val + &right_val),
+			_ => Object::Error(format!("unknown operator: STRING {} STRING", operator)),
 		}
 	}
 
@@ -437,6 +450,9 @@ mod tests {
 			if (10 > 1) { return true + false; }
 		}else{ return 1; }", "ERROR: unknown operator: BOOLEAN + BOOLEAN"),
 		("foo", "ERROR: identifier not found: foo"),
+		(r#" "hello" + 1 "#, "ERROR: type mismatch: STRING + INTEGER"),
+		(r#" "hello world" - "world" "#, "ERROR: unknown operator: STRING - STRING"),
+
 		];
 
 		println!("Start Test!");
@@ -494,6 +510,28 @@ mod tests {
 		for test in input.iter() {
 			let evaluated = test_eval(test.0.to_string());
 			test_integer_object(evaluated, test.1);
+		}
+	}
+
+	#[test]
+	fn test_string_literal(){
+		let input = r#" "Hello World!" "#;
+
+		let evaluated = test_eval(input.to_string());
+		match evaluated {
+			Object::String(s) => assert_eq!(s, "Hello World!".to_string()),
+			_ => assert!(false, "Expected String Object, go {:?} instead!", evaluated),
+		}
+	}
+
+	#[test]
+	fn test_string_literal_concat(){
+		let input = r#" "Hello" + " " + "World!" "#;
+
+		let evaluated = test_eval(input.to_string());
+		match evaluated {
+			Object::String(s) => assert_eq!(s, "Hello World!".to_string()),
+			_ => assert!(false, "Expected String Object, go {:?} instead!", evaluated),
 		}
 	}
 }

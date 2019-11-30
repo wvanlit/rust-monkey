@@ -210,6 +210,7 @@ impl Parser {
             TokenType::LPAREN => self.parse_grouped_expression(),
             TokenType::IF => self.parse_if_expression(),
             TokenType::FUNCTION => self.parse_function_literal(),
+            TokenType::STRING => self.parse_string_literal(),
             _ => ast::Expr::None,
         }
     }
@@ -401,6 +402,10 @@ impl Parser {
     	let body = self.parse_block_statement();
 
     	ast::Expr::FunctionLiteral(parameters, Box::new(body))
+    }
+
+    fn parse_string_literal(&mut self) -> ast::Expr{
+        ast::Expr::String(self.cur_token.literal.clone())
     }
 
     fn parse_prefix_expression(&mut self) -> ast::Expr {
@@ -1084,6 +1089,35 @@ mod tests {
         		_ => assert!(false),
         	},
         	_ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = r#" "hello world" "#;
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+
+        match statement {
+            ast::Statement::Expr(expr) => match expr{
+                ast::Expr::String(s) => assert_eq!(s, "hello world".to_string()),
+                _ => assert!(false, "Expression is {:?} instead of String", expr),
+            },
+            _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
         }
     }
 }

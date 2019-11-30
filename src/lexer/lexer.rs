@@ -63,6 +63,15 @@ impl Lexer {
         }
     }
 
+    fn read_string(&mut self) -> &str{
+        let start_pos = self.position + 1;
+        self.read_char();
+        while self.current_char != '"'{
+            self.read_char();
+        }
+        &self.input[start_pos..self.position]
+    }
+
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.current_char {
@@ -95,6 +104,9 @@ impl Lexer {
                 }
             }
 
+            // String
+            '"' => Token::new(TokenType::STRING, self.read_string().to_string()),
+
             // Mathematical Operators
             '+' => Token::new(TokenType::PLUS, self.current_char.to_string()),
             '-' => Token::new(TokenType::MINUS, self.current_char.to_string()),
@@ -116,6 +128,8 @@ impl Lexer {
 
             // End of File delimiter
             '\0' => Token::new(TokenType::EOF, "".to_string()),
+
+            // Else
             _ => {
                 if is_letter(self.current_char) {
                     let literal = self.read_identifier();
@@ -360,6 +374,27 @@ mod tests {
             Token::new(TokenType::NOT_EQ, "!=".to_string()),
             Token::new(TokenType::INT, "9".to_string()),
             Token::new(TokenType::SEMICOLON, ";".to_string()),
+            Token::new(TokenType::EOF, "".to_string()),
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for token in expected.iter() {
+            let lexed_token = lexer.next_token();
+            assert_eq!(lexed_token, *token);
+        }
+    }
+
+    #[test]
+    fn test_strings() {
+        let input = r#" 
+        "foobar" 
+        "foo bar baz"
+        "#;
+
+        let expected = [
+            Token::new(TokenType::STRING, "foobar".to_string()),
+            Token::new(TokenType::STRING, "foo bar baz".to_string()),
             Token::new(TokenType::EOF, "".to_string()),
         ];
 

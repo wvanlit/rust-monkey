@@ -44,6 +44,7 @@ pub enum TokenType {
     // Identifiers
     IDENT, // Add, foobar, x, y, etc
     INT,   // Integers such as 1, 33 or 89
+    STRING,
 
     // Operators
     ASSIGN,   // '='

@@ -52,6 +52,7 @@ pub enum Expr {
     Bool(bool),
     Identifier(Identifier),
     IntegerLiteral(i32),
+    String(String),
     Prefix(String, Box<Expr>),
     Infix(TokenType, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Statement>, Option<Box<Statement>>),
@@ -65,6 +66,7 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::Bool(val) => format!("{}", val),
         Expr::Identifier(id) => format!("{}", id.value),
         Expr::IntegerLiteral(i) => format!("{}", i),
+        Expr::String(s) => s.clone(),
         Expr::Prefix(op, boxed_expr) => format!("({}{})", op, expression_to_string(boxed_expr)),
         Expr::Infix(op, boxed_left, boxed_right) => format!(
             "({} {} {})",
