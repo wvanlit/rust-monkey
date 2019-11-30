@@ -45,7 +45,5 @@ pub fn start() {
             Object::Null => (),
             _ => println!("{}", outcome.inspect()),
         };
-        
-
     }
 }

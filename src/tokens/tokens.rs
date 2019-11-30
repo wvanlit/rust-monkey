@@ -63,12 +63,12 @@ pub enum TokenType {
     // Delimiters
     COMMA,     // ','
     SEMICOLON, // ';'
-    COLON, // ':'
+    COLON,     // ':'
 
-    LPAREN, // '('
-    RPAREN, // ')'
-    LBRACE, // '{'
-    RBRACE, // '}'
+    LPAREN,   // '('
+    RPAREN,   // ')'
+    LBRACE,   // '{'
+    RBRACE,   // '}'
     LBRACKET, // '['
     RBRACKET, // ']'
 

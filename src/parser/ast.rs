@@ -1,5 +1,4 @@
-use crate::tokens::tokens::{TokenType};
-
+use crate::tokens::tokens::TokenType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -10,7 +9,7 @@ pub fn program_to_string(program: &Program) -> String {
     let mut output = String::new();
     for (index, statement) in program.statements.iter().enumerate() {
         output += &statement_to_string(&statement);
-        if program.statements.len() - index != 1{
+        if program.statements.len() - index != 1 {
             output += "\n";
         }
     }
@@ -29,21 +28,19 @@ pub enum Statement {
 
 pub fn statement_to_string(statement: &Statement) -> String {
     match &*statement {
-        Statement::Let(ident, expr) => {
-            format!("let {} = {}", ident, expression_to_string(expr))
-        }
+        Statement::Let(ident, expr) => format!("let {} = {}", ident, expression_to_string(expr)),
         Statement::Return(expr) => format!("(return {})", expression_to_string(expr)),
         Statement::Expr(expr) => format!("{}", expression_to_string(expr)),
         Statement::BlockStatement(vec) => {
-        	let mut output = String::new(); 
-        	for (index, stmnt) in vec.iter().enumerate(){
-        		output += &statement_to_string(stmnt);
-        		if vec.len() - index != 1{
-        			output += "\n";
-        		}
-        	}
-        	output
-        },
+            let mut output = String::new();
+            for (index, stmnt) in vec.iter().enumerate() {
+                output += &statement_to_string(stmnt);
+                if vec.len() - index != 1 {
+                    output += "\n";
+                }
+            }
+            output
+        }
         Statement::None => "None".to_string(),
     }
 }
@@ -61,7 +58,10 @@ pub enum Expr {
     Infix(TokenType, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Statement>, Option<Box<Statement>>),
     FunctionLiteral(Vec<Identifier>, Box<Statement>),
-    CallExpression{function: Box<Expr>, arguments: Vec<Expr>}, // Function can be either func_literal or identifier
+    CallExpression {
+        function: Box<Expr>,
+        arguments: Vec<Expr>,
+    }, // Function can be either func_literal or identifier
     None,
 }
 
@@ -73,29 +73,30 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::String(s) => s.clone(),
         Expr::Index(l, i) => format!("({}[{}])", expression_to_string(l), expression_to_string(i)),
         Expr::ArrayLiteral(vec) => {
-            let mut output = String::new(); 
-            for (index, expr) in vec.iter().enumerate(){
+            let mut output = String::new();
+            for (index, expr) in vec.iter().enumerate() {
                 output += &expression_to_string(expr);
-                if vec.len() - index != 1{
+                if vec.len() - index != 1 {
                     output += ", ";
                 }
             }
             format!("[{}]", output)
-        },
+        }
         Expr::HashLiteral(vec) => {
-            let mut output = String::new(); 
-            for (index, (key, expr)) in vec.iter().enumerate(){
+            let mut output = String::new();
+            for (index, (key, expr)) in vec.iter().enumerate() {
                 output += format!(
-                        "{}:{}", 
-                        expression_to_string(key).as_str(), 
-                        expression_to_string(expr).as_str()
-                    ).as_str();
-                if vec.len() - index != 1{
+                    "{}:{}",
+                    expression_to_string(key).as_str(),
+                    expression_to_string(expr).as_str()
+                )
+                .as_str();
+                if vec.len() - index != 1 {
                     output += ", ";
                 }
             }
             format!("{{{}}}", output)
-        },
+        }
         Expr::Prefix(op, boxed_expr) => format!("({}{})", op, expression_to_string(boxed_expr)),
         Expr::Infix(op, boxed_left, boxed_right) => format!(
             "({} {} {})",
@@ -117,27 +118,30 @@ pub fn expression_to_string(expression: &Expr) -> String {
             ),
         },
         Expr::FunctionLiteral(parameters, body) => {
-        	let mut output = String::new(); 
-        	for (index, ident) in parameters.iter().enumerate(){
-        		output += &ident;
-        		if parameters.len() - index != 1{
-        			output += ", ";
-        		}
-        	}
-        	format!("fn ({}) {}", output, statement_to_string(body))
-        },
-        Expr::CallExpression{function: boxed_func, arguments: args} => {
-        	let mut arg_string = String::new();
-        	for (index, expr) in args.iter().enumerate() {
-        		arg_string.push_str(&expression_to_string(expr));
-        		if args.len() - (index+1) > 0{
-        			println!("len {:?} index {}", args.len(), index);
-        			arg_string.push_str(", ");
-        		}
-        	}
+            let mut output = String::new();
+            for (index, ident) in parameters.iter().enumerate() {
+                output += &ident;
+                if parameters.len() - index != 1 {
+                    output += ", ";
+                }
+            }
+            format!("fn ({}) {}", output, statement_to_string(body))
+        }
+        Expr::CallExpression {
+            function: boxed_func,
+            arguments: args,
+        } => {
+            let mut arg_string = String::new();
+            for (index, expr) in args.iter().enumerate() {
+                arg_string.push_str(&expression_to_string(expr));
+                if args.len() - (index + 1) > 0 {
+                    println!("len {:?} index {}", args.len(), index);
+                    arg_string.push_str(", ");
+                }
+            }
 
-        	format!("{}({})", expression_to_string(boxed_func), arg_string)
-        },
+            format!("{}({})", expression_to_string(boxed_func), arg_string)
+        }
         Expr::None => "none".to_string(),
     }
 }

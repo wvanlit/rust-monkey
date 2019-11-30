@@ -63,10 +63,10 @@ impl Lexer {
         }
     }
 
-    fn read_string(&mut self) -> &str{
+    fn read_string(&mut self) -> &str {
         let start_pos = self.position + 1;
         self.read_char();
-        while self.current_char != '"'{
+        while self.current_char != '"' {
             self.read_char();
         }
         &self.input[start_pos..self.position]
