@@ -29,7 +29,7 @@ pub enum Statement {
 pub fn statement_to_string(statement: &Statement) -> String {
     match &*statement {
         Statement::Let(ident, expr) => {
-            format!("let {} = {}", ident.value, expression_to_string(expr))
+            format!("let {} = {}", ident, expression_to_string(expr))
         }
         Statement::Return(expr) => format!("(return {})", expression_to_string(expr)),
         Statement::Expr(expr) => format!("{}", expression_to_string(expr)),
@@ -64,7 +64,7 @@ pub enum Expr {
 pub fn expression_to_string(expression: &Expr) -> String {
     match expression {
         Expr::Bool(val) => format!("{}", val),
-        Expr::Identifier(id) => format!("{}", id.value),
+        Expr::Identifier(id) => format!("{}", id),
         Expr::IntegerLiteral(i) => format!("{}", i),
         Expr::String(s) => s.clone(),
         Expr::Prefix(op, boxed_expr) => format!("({}{})", op, expression_to_string(boxed_expr)),
@@ -90,7 +90,7 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::FunctionLiteral(parameters, body) => {
         	let mut output = String::new(); 
         	for (index, ident) in parameters.iter().enumerate(){
-        		output += &ident.value;
+        		output += &ident;
         		if parameters.len() - index != 1{
         			output += ", ";
         		}
@@ -112,7 +112,5 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::None => "none".to_string(),
     }
 }
-#[derive(Debug, Clone)]
-pub struct Identifier {
-    pub value: String,
-}
+
+pub type Identifier = String;

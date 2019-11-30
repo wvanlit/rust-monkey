@@ -2,8 +2,9 @@ use std::rc::Rc;
 use core::cell::RefCell;
 use std::collections::HashMap;
 use crate::parser::ast;
+use crate::evaluate::builtin::{BuiltinFunction, get_builtin_functions};
 
-pub type BuiltinFunction = fn(Vec<Object>) -> Result<Object, String>;
+
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -27,7 +28,7 @@ impl Object {
 			Object::Function{parameters, body, env: _} => {
 				let mut output = String::new(); 
 				for (index, ident) in parameters.iter().enumerate(){
-					output += &ident.value;
+					output += &ident;
 					if parameters.len() - index != 1{
 						output += ", ";
 					}
@@ -72,18 +73,28 @@ pub struct Environment {
 }
 
 impl Environment {
-	pub fn new() -> Self{
-		Environment{
-			store: HashMap::new(),
-			outer: None,
+	fn fill_builtins(&mut self){
+		for (key, func) in get_builtin_functions().iter(){
+			self.set(key.to_string(), func.clone());
 		}
 	}
 
+	pub fn new() -> Self{
+		let mut e = Environment{
+			store: HashMap::new(),
+			outer: None,
+		};
+		e.fill_builtins();
+		e
+	}
+
 	pub fn new_outer(outer: Rc<RefCell<Self>>) -> Self{
-		Environment{
+		let mut e = Environment{
 			store: HashMap::new(),
 			outer: Some(outer),
-		}
+		};
+		e.fill_builtins();
+		e
 	}
 
 	pub fn get(&self, key: String) -> Option<Object>{

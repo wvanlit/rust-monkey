@@ -46,7 +46,7 @@ impl Evaluator {
 			ast::Statement::Return(expr) => self.eval_return_statement(expr),
 			ast::Statement::Let(ident, expr) => {
 				let obj = self.eval_expression(expr);
-				self.eval_let_statement(ident.value.clone(), obj)
+				self.eval_let_statement(ident.clone(), obj)
 			},
 			_ => Object::Null,
 		}
@@ -92,7 +92,7 @@ impl Evaluator {
 			ast::Expr::IntegerLiteral(i) => Object::Integer(*i),
 			ast::Expr::Bool(b) => Object::Boolean(*b),
 			ast::Expr::String(s) => Object::String(s.clone()),
-			ast::Expr::Identifier(ident) => self.eval_identifier(ident.value.clone()),
+			ast::Expr::Identifier(ident) => self.eval_identifier(ident.clone()),
 			ast::Expr::Prefix(op, right) => {
 				let right_obj = self.eval_expression(right);
 				self.eval_prefix_expression(op, right_obj)
@@ -248,12 +248,24 @@ impl Evaluator {
 	fn apply_function(&mut self, function_object: Object, args: Vec<Object>) -> Object{
 		match function_object {
 			Object::Function{parameters, mut body, env} => {
+				if parameters.len() != args.len() {
+					return Object::Error(format!("wrong number of arguments, got {} instead of {}", args.len(), parameters.len()))
+				}
 				let extended_env = self.extend_environment(env, parameters, args);
 				let mut evaluator = Evaluator::new_with_env(extended_env);
 				let eval = evaluator.eval_statement(&mut body);
 				match eval {
 					Object::Return(val) => *val,
 					_ => eval,
+				}
+			},
+			Object::Builtin(_, paramcount, func) => {
+				if paramcount != args.len() {
+					return Object::Error(format!("wrong number of arguments, got {} instead of {}", args.len(), paramcount))
+				};
+				match func(args){
+					Ok(obj) => obj,
+					Err(e) => Object::Error(e),
 				}
 			},
 			_ => Object::Error(format!("not a function: {}", function_object.type_string())),
@@ -263,7 +275,7 @@ impl Evaluator {
 	fn extend_environment(&mut self, outer: Rc<RefCell<Environment>>, params: Vec<ast::Identifier>, args: Vec<Object>) -> Environment{
 		let mut env = Environment::new_outer(outer);
 		for (index, parameter) in params.iter().enumerate(){
-			env.set(parameter.value.clone(), args[index].clone());
+			env.set(parameter.clone(), args[index].clone());
 		}
 
 		env
@@ -486,8 +498,8 @@ mod tests {
 		match evaluated {
 			Object::Function{mut parameters, body, env: _} => {
 				assert_eq!(parameters.len(), 2);
-				assert_eq!(parameters.pop().expect("expected value").value, "y");
-				assert_eq!(parameters.pop().expect("expected value").value, "x");
+				assert_eq!(parameters.pop().expect("expected value"), "y");
+				assert_eq!(parameters.pop().expect("expected value"), "x");
 
 				assert_eq!(ast::statement_to_string(&body), "(x + y)");
 			},
@@ -532,6 +544,34 @@ mod tests {
 		match evaluated {
 			Object::String(s) => assert_eq!(s, "Hello World!".to_string()),
 			_ => assert!(false, "Expected String Object, go {:?} instead!", evaluated),
+		}
+	}
+
+	fn error(message: &str) -> Object{
+		Object::Error(message.to_string())
+	}
+
+	#[test]
+	fn test_builtin_functions() {
+		let input = vec![
+		(r#"len("")"#, int(0)),
+		(r#"len("hello")"#, int(5)),
+		(r#"len("hello world")"#, int(11)),
+		(r#"len(1)"#, error("argument to 'len' not supported, got INTEGER")),
+		(r#"len("hello", "world")"#, error("wrong number of arguments, got 2 instead of 1")),
+		];
+
+		for test in input.iter() {
+			let evaluated = test_eval(test.0.to_string());
+			match &test.1 {
+				Object::Error(m) => match evaluated{
+					Object::Error(m2) => assert_eq!(*m, m2),
+					_ => assert!(false, "Expected [{}] but got [{}]!", test.1.inspect(), evaluated.inspect()),
+				},
+				Object::Integer(i) => test_integer_object(evaluated, *i),
+				_ => assert!(false, "Type {} not supported in test!", test.1.type_string()),
+			}
+			
 		}
 	}
 }

@@ -162,9 +162,7 @@ impl Parser {
         }
 
         Some(ast::Statement::Let(
-            ast::Identifier {
-                value: cur_token.literal.clone(),
-            },
+            cur_token.literal.clone(),
             value,
         ))
     }
@@ -260,9 +258,7 @@ impl Parser {
         );
         let cur_token = *cur_token_box;
 
-        ast::Expr::Identifier(ast::Identifier {
-            value: cur_token.literal.clone(),
-        })
+        ast::Expr::Identifier(cur_token.literal.clone())
     }
 
     fn parse_integer_literal(&mut self) -> ast::Expr {
@@ -362,9 +358,7 @@ impl Parser {
 
     	self.next_token();
 
-    	let mut ident = ast::Identifier{
-    		value: self.cur_token.literal.clone(),
-    	};
+    	let mut ident = self.cur_token.literal.clone();
 
     	identifiers.push(ident);
 
@@ -372,9 +366,7 @@ impl Parser {
     		self.next_token();
     		self.next_token();
 
-    		ident = ast::Identifier{
-    			value: self.cur_token.literal.clone(),
-    		};
+    		ident = self.cur_token.literal.clone();
 
     		identifiers.push(ident);
     	}
@@ -509,7 +501,7 @@ mod tests {
     fn assert_let_statement(statement: &ast::Statement, expected_identifier: &str) {
         match statement {
             ast::Statement::Let(identifier, _) => {
-                assert_eq!(identifier.value, expected_identifier.to_string());
+                assert_eq!(*identifier, expected_identifier.to_string());
             }
             _ => assert!(false),
         };
@@ -539,7 +531,7 @@ mod tests {
         let x_is_5 = program.statements.remove(0);
         match x_is_5 {
         	ast::Statement::Let(identifier, expr) => {
-        		assert_eq!(identifier.value, "x".to_string());
+        		assert_eq!(identifier, "x".to_string());
         		test_integer_literal(&expr, 5);
         	},	
         	_ => assert!(false),
@@ -548,7 +540,7 @@ mod tests {
         let y_is_true = program.statements.remove(0);
         match y_is_true {
         	ast::Statement::Let(identifier, expr) => {
-        		assert_eq!(identifier.value, "y".to_string());
+        		assert_eq!(identifier, "y".to_string());
         		test_bool(&expr, true);
         	},	
         	_ => assert!(false),
@@ -557,9 +549,9 @@ mod tests {
         let foo_is_y = program.statements.remove(0);
         match foo_is_y {
         	ast::Statement::Let(identifier, expr) => {
-        		assert_eq!(identifier.value, "foo".to_string());
+        		assert_eq!(identifier, "foo".to_string());
         		match expr {
-        			ast::Expr::Identifier(ident) => assert_eq!(ident.value, "y".to_string()),
+        			ast::Expr::Identifier(ident) => assert_eq!(ident, "y".to_string()),
         			_ => assert!(false),
         		}
         	},	
@@ -620,7 +612,7 @@ mod tests {
         match statement {
             ast::Statement::Expr(expr) => match expr {
                 ast::Expr::Identifier(identifier) => {
-                    assert_eq!(identifier.value, "foobar".to_string());
+                    assert_eq!(identifier, "foobar".to_string());
                 }
                 _ => assert!(false),
             },
@@ -719,9 +711,7 @@ mod tests {
     }
 
     fn ident(value: &str) -> ast::Expr {
-        ast::Expr::Identifier(ast::Identifier {
-            value: value.to_string(),
-        })
+        ast::Expr::Identifier(value.to_string())
     }
 
     #[test]
@@ -820,7 +810,7 @@ mod tests {
     fn test_identifier(expr: &ast::Expr, expected: &String) {
         match expr {
             ast::Expr::Identifier(ident) => {
-                assert_eq!(ident.value, *expected);
+                assert_eq!(ident, expected);
             }
             _ => assert!(false),
         }
@@ -829,7 +819,7 @@ mod tests {
     fn test_expression(expr: &ast::Expr, expected: &ast::Expr) {
         match expr {
             ast::Expr::Identifier(_) => match expected {
-                ast::Expr::Identifier(ident) => test_identifier(expr, &ident.value),
+                ast::Expr::Identifier(ident) => test_identifier(expr, &ident),
                 _ => assert!(false),
             },
             ast::Expr::IntegerLiteral(_) => match expected {
@@ -1032,8 +1022,8 @@ mod tests {
                 	// Test Parameters
                    	assert_eq!(parameters.len(), 2);
 
-					assert_eq!(parameters.remove(0).value, "x");
-					assert_eq!(parameters.remove(0).value, "y");
+					assert_eq!(parameters.remove(0), "x");
+					assert_eq!(parameters.remove(0), "y");
 
 
                    	// Test Body
