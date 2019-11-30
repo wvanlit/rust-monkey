@@ -118,6 +118,7 @@ impl Lexer {
             '>' => Token::new(TokenType::GT, self.current_char.to_string()),
 
             // Delimiters
+            ':' => Token::new(TokenType::COLON, self.current_char.to_string()),
             ';' => Token::new(TokenType::SEMICOLON, self.current_char.to_string()),
             ',' => Token::new(TokenType::COMMA, self.current_char.to_string()),
 
@@ -418,6 +419,28 @@ mod tests {
             Token::new(TokenType::COMMA, ",".to_string()),
             Token::new(TokenType::INT, "2".to_string()),
             Token::new(TokenType::RBRACKET, "]".to_string()),
+            Token::new(TokenType::SEMICOLON, ";".to_string()),
+            Token::new(TokenType::EOF, "".to_string()),
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for token in expected.iter() {
+            let lexed_token = lexer.next_token();
+            assert_eq!(lexed_token, *token);
+        }
+    }
+
+    #[test]
+    fn test_hash() {
+        let input = r#"{"foo": "bar"};"#;
+
+        let expected = [
+            Token::new(TokenType::LBRACE, "{".to_string()),
+            Token::new(TokenType::STRING, "foo".to_string()),
+            Token::new(TokenType::COLON, ":".to_string()),
+            Token::new(TokenType::STRING, "bar".to_string()),
+            Token::new(TokenType::RBRACE, "}".to_string()),
             Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::EOF, "".to_string()),
         ];

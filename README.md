@@ -22,7 +22,7 @@ Rust-Monkey supports:
 * Closures
 * Integers, Booleans, Strings
 * Immutable Arrays 
-* Hashes (soon)
+* Hashes 
 
 ## Planned Features
 * While Loops

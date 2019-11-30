@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use crate::parser::ast;
 use crate::evaluate::object::{Object, Environment};
 use crate::tokens::tokens::{TokenType};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Evaluator {
@@ -98,6 +99,7 @@ impl Evaluator {
 				let index_obj = self.eval_expression(index);
 				self.eval_index(left_obj, index_obj)
 			},
+			ast::Expr::HashLiteral(key_vec) => self.eval_hash_literal(key_vec),
 			ast::Expr::Identifier(ident) => self.eval_identifier(ident.clone()),
 			ast::Expr::Prefix(op, right) => {
 				let right_obj = self.eval_expression(right);
@@ -165,8 +167,33 @@ impl Evaluator {
 				},
 				_ => Object::Error(format!("Index is not an Integer, instead found: {}", index.type_string())),
 			},
+			Object::Hash(map) => match map.get(&index) {
+				Some(obj) => obj.clone(),
+				None => Object::Null,
+			}
 			_ => Object::Error(format!("Expression is not an Array, instead found: {}", data.type_string())),
 		}
+	}
+
+	fn eval_hash_literal(&mut self, key_vec: &mut Vec<(ast::Expr, ast::Expr)>) -> Object{
+		let mut map = HashMap::new();
+
+		for (key, value) in key_vec.iter_mut(){
+			let key_obj = self.eval_expression(key);
+			if key_obj.is_error(){
+				return key_obj;
+			}
+
+			let value_obj = self.eval_expression(value);
+
+			if value_obj.is_error(){
+				return value_obj;
+			}
+
+			map.insert(key_obj, value_obj);
+		}
+
+		Object::Hash(map)
 	}
 
 	fn eval_prefix_expression(&self, operator: &String, right: Object) -> Object{
@@ -641,6 +668,66 @@ mod tests {
 		("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", int(2)),
 		("[1, 2, 3][3]", null()),
 		("[1, 2, 3][-1]", null()),
+
+		];
+
+		for test in input.iter() {
+			let evaluated = test_eval(test.0.to_string());
+			match &test.1 {
+				Object::Integer(i) => test_integer_object(evaluated, *i),
+				Object::Null => match evaluated {
+					Object::Null => (),
+					_ => assert!(false, "Expected NULL not {}", evaluated.type_string()),
+				}
+				_ => assert!(false, "Type {} not supported in test!", test.1.type_string()),
+			} 
+		}
+	}
+
+	fn string(s: &str) -> Object{
+		Object::String(s.to_string())
+	}
+
+	fn boolean(b: bool) -> Object{
+		Object::Boolean(b)
+	}
+
+	#[test]
+	fn test_hash_literal() {
+		let input = r#"
+		let two = "two";
+		{
+			"one": 10 - 9,
+			two: 1 + 1,
+			"thr" + "ee": 6 / 2,
+			4: 4,
+			true: 5,
+			false: 6
+		}
+		"#;
+
+		let evaluated = test_eval(input.to_string());
+		match evaluated {
+			Object::Hash(map) => {
+				assert_eq!(map.len(), 6);
+				assert_eq!(int(1), map[&string("one")]);
+				assert_eq!(int(2), map[&string("two")]);
+				assert_eq!(int(3), map[&string("three")]);
+				assert_eq!(int(4), map[&int(4)]);
+				assert_eq!(int(5), map[&boolean(true)]);
+				assert_eq!(int(6), map[&boolean(false)]);
+			},
+			_ => assert!(false, "Expected HASH got {} instead!", evaluated.type_string())
+		}
+	}
+
+	#[test]
+	fn test_hash_index() {
+		let input = vec![
+		("{0:1, 1:2, 2:3}[0]", int(1)),
+		(r#"{"one":1, "two":2, "three":3}["two"]"#, int(2)),
+		("{true:1, false:0}[false]", int(0)),
+		("{0:1, 1:2, 2:3}[-1]", null()),
 
 		];
 

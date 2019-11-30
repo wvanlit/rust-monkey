@@ -1,3 +1,4 @@
+use core::hash::{Hash, Hasher};
 use std::rc::Rc;
 use core::cell::RefCell;
 use std::collections::HashMap;
@@ -6,17 +7,29 @@ use crate::evaluate::builtin::{BuiltinFunction, get_builtin_functions};
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
 	Integer(i32),
 	Boolean(bool),
 	String(String),
 	Array(Vec<Object>),
+	Hash(HashMap<Object, Object>),
 	Return(Box<Object>),
 	Function{parameters: Vec<ast::Identifier>, body: ast::Statement, env: Rc<RefCell<Environment>>},
 	Builtin(String, usize, BuiltinFunction),
 	Null,
 	Error(String)
+}
+
+impl Hash for Object{
+	fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Object::Integer(i) => i.hash(state),
+            Object::Boolean(b) => b.hash(state),
+            Object::String(s) => s.hash(state),
+            _ => "".hash(state),
+        }
+    }
 }
 
 impl Object {
@@ -34,6 +47,16 @@ impl Object {
 					}
 				}
 				format!("[{}]", output)
+			},
+			Object::Hash(map) => {
+				let mut output = String::new(); 
+				for (index, (key, value)) in map.iter().enumerate(){
+					output += format!("{}:{}", key.inspect(), value.inspect()).as_str();
+					if map.len() - index != 1{
+						output += ", ";
+					}
+				}
+				format!("{{{}}}", output)
 			},
 			Object::Return(r) => format!("return {}", r.inspect()),
 			Object::Function{parameters, body, env: _} => {
@@ -69,6 +92,7 @@ impl Object {
 			Object::Boolean(_) => "BOOLEAN",
 			Object::String(_) => "STRING",
 			Object::Array(_) => "ARRAY",
+			Object::Hash(_) => "HASH",
 			Object::Return(_) => "RETURN",
 			Object::Function{parameters: _, body: _, env: _} => "FUNCTION",
 			Object::Builtin(_,_,_) => "BUILTIN",
@@ -78,7 +102,7 @@ impl Object {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Environment {
 	store: HashMap<String, Object>,
 	outer: Option<Rc<RefCell<Environment>>>,
@@ -125,4 +149,3 @@ impl Environment {
 		self.store.insert(key, value);
 	}
 }
-

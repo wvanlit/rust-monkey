@@ -1,6 +1,7 @@
 use crate::tokens::tokens::{TokenType};
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
@@ -17,7 +18,7 @@ pub fn program_to_string(program: &Program) -> String {
     output
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
     Let(Identifier, Expr),
     Return(Expr),
@@ -47,7 +48,7 @@ pub fn statement_to_string(statement: &Statement) -> String {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     Bool(bool),
     Identifier(Identifier),
@@ -55,6 +56,7 @@ pub enum Expr {
     String(String),
     ArrayLiteral(Vec<Expr>),
     Index(Box<Expr>, Box<Expr>), // Left, Index
+    HashLiteral(Vec<(Expr, Expr)>),
     Prefix(String, Box<Expr>),
     Infix(TokenType, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Statement>, Option<Box<Statement>>),
@@ -79,6 +81,20 @@ pub fn expression_to_string(expression: &Expr) -> String {
                 }
             }
             format!("[{}]", output)
+        },
+        Expr::HashLiteral(vec) => {
+            let mut output = String::new(); 
+            for (index, (key, expr)) in vec.iter().enumerate(){
+                output += format!(
+                        "{}:{}", 
+                        expression_to_string(key).as_str(), 
+                        expression_to_string(expr).as_str()
+                    ).as_str();
+                if vec.len() - index != 1{
+                    output += ", ";
+                }
+            }
+            format!("{{{}}}", output)
         },
         Expr::Prefix(op, boxed_expr) => format!("({}{})", op, expression_to_string(boxed_expr)),
         Expr::Infix(op, boxed_left, boxed_right) => format!(

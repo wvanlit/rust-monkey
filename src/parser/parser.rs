@@ -215,6 +215,7 @@ impl Parser {
             TokenType::FUNCTION => self.parse_function_literal(),
             TokenType::STRING => self.parse_string_literal(),
             TokenType::LBRACKET => self.parse_array_literal(),
+            TokenType::LBRACE => self.parse_hash_literal(),
             _ => ast::Expr::None,
         }
     }
@@ -409,6 +410,41 @@ impl Parser {
 
     fn parse_array_literal(&mut self) -> ast::Expr{
         ast::Expr::ArrayLiteral(self.parse_expression_list(TokenType::RBRACKET))
+    }
+
+    fn parse_hash_literal(&mut self) -> ast::Expr{
+        let mut keys = vec![];
+
+        while !self.peek_token_is(TokenType::RBRACE){
+            self.next_token();
+            let key = match self.parse_expression(&mut Precedence::LOWEST){
+                Some(expr) => expr,
+                None => ast::Expr::None,
+            };
+
+            if !self.expect_peek(TokenType::COLON){
+                return ast::Expr::None;
+            }
+
+            self.next_token();
+
+            let value = match self.parse_expression(&mut Precedence::LOWEST){
+                Some(expr) => expr,
+                None => ast::Expr::None,
+            };
+
+            keys.push((key, value));
+
+            if !self.peek_token_is(TokenType::RBRACE) && !self.expect_peek(TokenType::COMMA){
+                return ast::Expr::None
+            }
+        }
+
+        if !self.expect_peek(TokenType::RBRACE){
+                return ast::Expr::None
+        }
+
+        ast::Expr::HashLiteral(keys)
     }
 
     fn parse_expression_list(&mut self, until: TokenType) -> Vec<ast::Expr>{
@@ -1199,6 +1235,81 @@ mod tests {
                     test_infix_expression(&index, &int(1), TokenType::PLUS, &int(1));
                 },
                 _ => assert!(false, "Expression is {:?} instead of Index", expr),
+            },
+            _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
+        }
+    }
+
+    fn string(s: &str) -> ast::Expr {
+        ast::Expr::String(s.to_string())
+    }
+
+    #[test]
+    fn test_hash_literal_parsing_string_keys() {
+        let input = r#"{"one":1, true:2, 3:3}"#;
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+
+        match statement {
+            ast::Statement::Expr(expr) => match expr{
+                ast::Expr::HashLiteral(keys) => {
+                    assert_eq!(keys.len(), 3);
+
+                    assert_eq!(keys[0].0, string("one"));
+                    assert_eq!(keys[0].1, int(1));
+
+                    assert_eq!(keys[1].0, bool(true));
+                    assert_eq!(keys[1].1, int(2));
+
+                    assert_eq!(keys[2].0, int(3));
+                    assert_eq!(keys[2].1, int(3));
+                },
+                _ => assert!(false, "Expression is {:?} instead of HashLiteral", expr),
+            },
+            _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
+        }
+    }
+
+    #[test]
+    fn test_hash_literal_parsing_empty() {
+        let input = r#"{}"#;
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+
+        match statement {
+            ast::Statement::Expr(expr) => match expr{
+                ast::Expr::HashLiteral(keys) => {
+                    assert_eq!(keys.len(), 0);
+                },
+                _ => assert!(false, "Expression is {:?} instead of HashLiteral", expr),
             },
             _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
         }
