@@ -11,6 +11,7 @@ pub enum Object {
 	Integer(i32),
 	Boolean(bool),
 	String(String),
+	Array(Vec<Object>),
 	Return(Box<Object>),
 	Function{parameters: Vec<ast::Identifier>, body: ast::Statement, env: Rc<RefCell<Environment>>},
 	Builtin(String, usize, BuiltinFunction),
@@ -24,6 +25,16 @@ impl Object {
 			Object::Integer(i) => format!("{}", i),
 			Object::Boolean(b) => format!("{}", b),
 			Object::String(s) => s.clone(),
+			Object::Array(elements) => {
+				let mut output = String::new(); 
+				for (index, obj) in elements.iter().enumerate(){
+					output += &obj.inspect();
+					if elements.len() - index != 1{
+						output += ", ";
+					}
+				}
+				format!("[{}]", output)
+			},
 			Object::Return(r) => format!("return {}", r.inspect()),
 			Object::Function{parameters, body, env: _} => {
 				let mut output = String::new(); 
@@ -57,6 +68,7 @@ impl Object {
 			Object::Integer(_) => "INTEGER",
 			Object::Boolean(_) => "BOOLEAN",
 			Object::String(_) => "STRING",
+			Object::Array(_) => "ARRAY",
 			Object::Return(_) => "RETURN",
 			Object::Function{parameters: _, body: _, env: _} => "FUNCTION",
 			Object::Builtin(_,_,_) => "BUILTIN",

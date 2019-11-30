@@ -16,7 +16,11 @@ pub enum Precedence {
     // '*' or '/'
     PREFIX,
     // '-x' or '!x'
-    CALL, // 'func(x)'
+    CALL, 
+    // 'func(x)'
+    INDEX,
+    // 'arr[x]'
+
 }
 
 fn get_token_precedence(token_type: TokenType) -> Precedence {
@@ -30,6 +34,7 @@ fn get_token_precedence(token_type: TokenType) -> Precedence {
         TokenType::SLASH => Precedence::PRODUCT,
         TokenType::ASTERISK => Precedence::PRODUCT,
         TokenType::LPAREN => Precedence::CALL,
+        TokenType::LBRACKET => Precedence::INDEX,
         _ => Precedence::LOWEST,
     }
 }
@@ -209,6 +214,7 @@ impl Parser {
             TokenType::IF => self.parse_if_expression(),
             TokenType::FUNCTION => self.parse_function_literal(),
             TokenType::STRING => self.parse_string_literal(),
+            TokenType::LBRACKET => self.parse_array_literal(),
             _ => ast::Expr::None,
         }
     }
@@ -216,6 +222,7 @@ impl Parser {
     fn parse_infix(&mut self, left: ast::Expr, token_type: TokenType) -> Result<ast::Expr, ast::Expr>{
     	match token_type {
     		TokenType::LPAREN => self.parse_call_expression(left),
+            TokenType::LBRACKET => self.parse_index_expression(left),
     		_ => self.parse_infix_expression(left),
     	}
     }
@@ -400,6 +407,40 @@ impl Parser {
         ast::Expr::String(self.cur_token.literal.clone())
     }
 
+    fn parse_array_literal(&mut self) -> ast::Expr{
+        ast::Expr::ArrayLiteral(self.parse_expression_list(TokenType::RBRACKET))
+    }
+
+    fn parse_expression_list(&mut self, until: TokenType) -> Vec<ast::Expr>{
+        let mut args: Vec<ast::Expr> = vec![];
+
+        if self.peek_token_is(until){
+            self.next_token();
+            return args;
+        }
+
+        self.next_token();
+        match self.parse_expression(&mut Precedence::LOWEST) {
+                Some(expr) => args.push(expr),
+                None => (), 
+        }
+
+        while self.peek_token_is(TokenType::COMMA){
+            self.next_token();
+            self.next_token();
+            match self.parse_expression(&mut Precedence::LOWEST) {
+                Some(expr) => args.push(expr),
+                None => (), 
+            }
+        }
+
+        if !self.expect_peek(until){
+            self.errors.push(Err("Expected RPAREN after parsing call arguments!".to_string()));
+        }
+
+        args
+    }
+
     fn parse_prefix_expression(&mut self) -> ast::Expr {
         let operator = self.cur_token.literal.clone();
 
@@ -418,38 +459,22 @@ impl Parser {
         ast::Expr::Prefix(operator.to_string(), Box::new(right))
     }
 
-    fn parse_call_arguments(&mut self) -> Vec<ast::Expr>{
-    	let mut args: Vec<ast::Expr> = vec![];
-
-    	if self.peek_token_is(TokenType::RPAREN){
-    		self.next_token();
-    		return args;
-    	}
-
-    	self.next_token();
-    	match self.parse_expression(&mut Precedence::LOWEST) {
-    			Some(expr) => args.push(expr),
-    			None => (), 
-		}
-
-		while self.peek_token_is(TokenType::COMMA){
-			self.next_token();
-			self.next_token();
-			match self.parse_expression(&mut Precedence::LOWEST) {
-    			Some(expr) => args.push(expr),
-    			None => (), 
-			}
-		}
-
-		if !self.expect_peek(TokenType::RPAREN){
-    		self.errors.push(Err("Expected RPAREN after parsing call arguments!".to_string()));
-    	}
-
-    	args
+    fn parse_call_expression(&mut self, function: ast::Expr) -> Result<ast::Expr, ast::Expr>{
+    	Ok(ast::Expr::CallExpression{function: Box::new(function), arguments: self.parse_expression_list(TokenType::RPAREN)})
     }
 
-    fn parse_call_expression(&mut self, function: ast::Expr) -> Result<ast::Expr, ast::Expr>{
-    	Ok(ast::Expr::CallExpression{function: Box::new(function), arguments: self.parse_call_arguments()})
+    fn parse_index_expression(&mut self, left: ast::Expr) -> Result<ast::Expr, ast::Expr>{
+        self.next_token();
+        let right = match self.parse_expression(&mut Precedence::LOWEST){
+            Some(expr) => expr,
+            None => return Err(ast::Expr::None),
+        };
+
+        if !self.expect_peek(TokenType::RBRACKET){
+            return Err(ast::Expr::None)
+        }
+
+        Ok(ast::Expr::Index(Box::new(left), Box::new(right)))
     }
 
     fn parse_infix_expression(&mut self, left: ast::Expr) -> Result<ast::Expr, ast::Expr> {
@@ -788,6 +813,8 @@ mod tests {
             ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
             ("add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"),
             ("add(a + b + c * d / f + g)","add((((a + b) + ((c * d) / f)) + g))"),
+            ("a * [1, 2, 3, 4][b * c] * d", "((a * ([1, 2, 3, 4][(b * c)])) * d)"),
+            ("add(a * b[2], b[1], 2 * [1, 2][1])", "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))"),
         ];
 
         for test in input.iter() {
@@ -1106,6 +1133,72 @@ mod tests {
             ast::Statement::Expr(expr) => match expr{
                 ast::Expr::String(s) => assert_eq!(s, "hello world".to_string()),
                 _ => assert!(false, "Expression is {:?} instead of String", expr),
+            },
+            _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
+        }
+    }
+
+    #[test]
+    fn test_array_literal_parsing() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+
+        match statement {
+            ast::Statement::Expr(expr) => match expr{
+                ast::Expr::ArrayLiteral(mut elements) => {
+                    assert_eq!(elements.len(), 3);
+                    test_infix_expression(&elements.remove(2), &int(3), TokenType::PLUS, &int(3));
+                    test_infix_expression(&elements.remove(1), &int(2), TokenType::ASTERISK, &int(2));
+                    test_integer_literal(&elements.remove(0), 1);
+                },
+                _ => assert!(false, "Expression is {:?} instead of Array", expr),
+            },
+            _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
+        }
+    }
+
+    #[test]
+    fn test_array_index_parsing() {
+        let input = "arr[1 + 1]";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+
+        let mut program = parser.parse_program();
+
+        // Check for errors
+        for err in parser.errors.iter() {
+            println!("{:?}", err.as_ref().unwrap_err());
+        }
+
+        assert_eq!(parser.errors.len(), 0);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements.pop().expect("Expected Statement!");
+
+        match statement {
+            ast::Statement::Expr(expr) => match expr{
+                ast::Expr::Index(left, index) => {
+                    test_identifier(&left, &"arr".to_string());
+                    test_infix_expression(&index, &int(1), TokenType::PLUS, &int(1));
+                },
+                _ => assert!(false, "Expression is {:?} instead of Index", expr),
             },
             _ => assert!(false, "Statement is {:?} instead of Expr", statement), 
         }

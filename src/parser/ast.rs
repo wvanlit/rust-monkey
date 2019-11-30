@@ -53,6 +53,8 @@ pub enum Expr {
     Identifier(Identifier),
     IntegerLiteral(i32),
     String(String),
+    ArrayLiteral(Vec<Expr>),
+    Index(Box<Expr>, Box<Expr>), // Left, Index
     Prefix(String, Box<Expr>),
     Infix(TokenType, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Statement>, Option<Box<Statement>>),
@@ -67,6 +69,17 @@ pub fn expression_to_string(expression: &Expr) -> String {
         Expr::Identifier(id) => format!("{}", id),
         Expr::IntegerLiteral(i) => format!("{}", i),
         Expr::String(s) => s.clone(),
+        Expr::Index(l, i) => format!("({}[{}])", expression_to_string(l), expression_to_string(i)),
+        Expr::ArrayLiteral(vec) => {
+            let mut output = String::new(); 
+            for (index, expr) in vec.iter().enumerate(){
+                output += &expression_to_string(expr);
+                if vec.len() - index != 1{
+                    output += ", ";
+                }
+            }
+            format!("[{}]", output)
+        },
         Expr::Prefix(op, boxed_expr) => format!("({}{})", op, expression_to_string(boxed_expr)),
         Expr::Infix(op, boxed_left, boxed_right) => format!(
             "({} {} {})",

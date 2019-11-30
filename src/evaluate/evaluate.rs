@@ -92,6 +92,12 @@ impl Evaluator {
 			ast::Expr::IntegerLiteral(i) => Object::Integer(*i),
 			ast::Expr::Bool(b) => Object::Boolean(*b),
 			ast::Expr::String(s) => Object::String(s.clone()),
+			ast::Expr::ArrayLiteral(e) => self.eval_array(e),
+			ast::Expr::Index(left, index) => {
+				let left_obj = self.eval_expression(left);
+				let index_obj = self.eval_expression(index);
+				self.eval_index(left_obj, index_obj)
+			},
 			ast::Expr::Identifier(ident) => self.eval_identifier(ident.clone()),
 			ast::Expr::Prefix(op, right) => {
 				let right_obj = self.eval_expression(right);
@@ -127,6 +133,39 @@ impl Evaluator {
 		match optional {
 			Some(obj) => obj.clone(),
 			None => Object::Error(format!("identifier not found: {}", identifier)),
+		}
+	}
+
+	fn eval_array(&mut self, expressions: &mut Vec<ast::Expr>) -> Object{
+		let list = self.eval_expressions(expressions);
+		if list[0].is_error(){
+			return list[0].clone()
+		}
+
+		Object::Array(list)
+	}
+
+	fn eval_index(&mut self, data: Object, index: Object) -> Object{
+		if data.is_error(){
+			return data;
+		}
+
+		if index.is_error(){
+			return index;
+		}
+
+		match data {
+			Object::Array(elem) => match index {
+				Object::Integer(i) => {
+					if ((elem.len()-1) as i32) < i || i < 0 {
+						return Object::Null
+					}
+
+					elem[i as usize].clone()
+				},
+				_ => Object::Error(format!("Index is not an Integer, instead found: {}", index.type_string())),
+			},
+			_ => Object::Error(format!("Expression is not an Array, instead found: {}", data.type_string())),
 		}
 	}
 
@@ -532,7 +571,7 @@ mod tests {
 		let evaluated = test_eval(input.to_string());
 		match evaluated {
 			Object::String(s) => assert_eq!(s, "Hello World!".to_string()),
-			_ => assert!(false, "Expected String Object, go {:?} instead!", evaluated),
+			_ => assert!(false, "Expected String Object, got {:?} instead!", evaluated),
 		}
 	}
 
@@ -543,7 +582,7 @@ mod tests {
 		let evaluated = test_eval(input.to_string());
 		match evaluated {
 			Object::String(s) => assert_eq!(s, "Hello World!".to_string()),
-			_ => assert!(false, "Expected String Object, go {:?} instead!", evaluated),
+			_ => assert!(false, "Expected String Object, got {:?} instead!", evaluated),
 		}
 	}
 
@@ -570,8 +609,51 @@ mod tests {
 				},
 				Object::Integer(i) => test_integer_object(evaluated, *i),
 				_ => assert!(false, "Type {} not supported in test!", test.1.type_string()),
-			}
-			
+			} 
+		}
+	}
+
+	#[test]
+	fn test_array_literal() {
+		let input = "[1, 2 * 2, 3 + 3]";
+
+		let evaluated = test_eval(input.to_string());
+		match evaluated {
+			Object::Array(e) => {
+				assert_eq!(e[0].inspect(), "1");
+				assert_eq!(e[1].inspect(), "4");
+				assert_eq!(e[2].inspect(), "6");
+			},
+			_ => assert!(false, "Expected Array Object, got {:?} instead!", evaluated),
+		}
+	}
+
+	#[test]
+	fn test_array_index() {
+		let input = vec![
+		("[1, 2, 3][0]", int(1)),
+		("[1, 2, 3][1]", int(2)),
+		("[1, 2, 3][2]", int(3)),
+		("let i = 0; [1][i];", int(1)),
+		("[1, 2, 3][1 + 1];", int(3)),
+		("let myArray = [1, 2, 3]; myArray[2];", int(3)),
+		("let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", int(6)),
+		("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", int(2)),
+		("[1, 2, 3][3]", null()),
+		("[1, 2, 3][-1]", null()),
+
+		];
+
+		for test in input.iter() {
+			let evaluated = test_eval(test.0.to_string());
+			match &test.1 {
+				Object::Integer(i) => test_integer_object(evaluated, *i),
+				Object::Null => match evaluated {
+					Object::Null => (),
+					_ => assert!(false, "Expected NULL not {}", evaluated.type_string()),
+				}
+				_ => assert!(false, "Type {} not supported in test!", test.1.type_string()),
+			} 
 		}
 	}
 }

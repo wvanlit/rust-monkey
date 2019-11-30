@@ -125,6 +125,8 @@ impl Lexer {
             '}' => Token::new(TokenType::RBRACE, self.current_char.to_string()),
             '(' => Token::new(TokenType::LPAREN, self.current_char.to_string()),
             ')' => Token::new(TokenType::RPAREN, self.current_char.to_string()),
+            '[' => Token::new(TokenType::LBRACKET, self.current_char.to_string()),
+            ']' => Token::new(TokenType::RBRACKET, self.current_char.to_string()),
 
             // End of File delimiter
             '\0' => Token::new(TokenType::EOF, "".to_string()),
@@ -395,6 +397,28 @@ mod tests {
         let expected = [
             Token::new(TokenType::STRING, "foobar".to_string()),
             Token::new(TokenType::STRING, "foo bar baz".to_string()),
+            Token::new(TokenType::EOF, "".to_string()),
+        ];
+
+        let mut lexer = Lexer::new(input.to_string());
+
+        for token in expected.iter() {
+            let lexed_token = lexer.next_token();
+            assert_eq!(lexed_token, *token);
+        }
+    }
+
+    #[test]
+    fn test_brackets() {
+        let input = "[1, 2];";
+
+        let expected = [
+            Token::new(TokenType::LBRACKET, "[".to_string()),
+            Token::new(TokenType::INT, "1".to_string()),
+            Token::new(TokenType::COMMA, ",".to_string()),
+            Token::new(TokenType::INT, "2".to_string()),
+            Token::new(TokenType::RBRACKET, "]".to_string()),
+            Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::EOF, "".to_string()),
         ];
 

@@ -68,6 +68,8 @@ pub enum TokenType {
     RPAREN, // ')'
     LBRACE, // '{'
     RBRACE, // '}'
+    LBRACKET, // '['
+    RBRACKET, // ']'
 
     // General Keywords
     FUNCTION, // Function declaration
